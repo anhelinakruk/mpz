@@ -12,6 +12,9 @@ pub use mpz_circuits_data::AES128_POST_KS;
 #[cfg(feature = "blake3")]
 pub use mpz_circuits_data::BLAKE3_COMPRESS;
 
+#[cfg(feature = "blake2s")]
+pub use mpz_circuits_data::BLAKE2S_COMPRESS;
+
 #[cfg(feature = "sha2")]
 pub use mpz_circuits_data::SHA256_COMPRESS;
 

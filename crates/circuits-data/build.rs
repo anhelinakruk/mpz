@@ -12,6 +12,7 @@ fn main() {
     build_aes(&circuits_dir);
     build_sha2(&circuits_dir);
     build_blake3();
+    build_blake2s();
     build_keccak(&circuits_dir);
 }
 
@@ -48,6 +49,13 @@ fn build_blake3() {
 
     let bytes = bincode::serialize(&circ).unwrap();
     write(Path::new("data/blake3.bin"), bytes).unwrap();
+}
+
+fn build_blake2s() {
+    let circ = mpz_circuits_core::circuits::blake2s::compress();
+
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/blake2s.bin"), bytes).unwrap();
 }
 
 fn build_keccak(circuits_dir: &Path) {

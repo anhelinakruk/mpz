@@ -63,6 +63,21 @@ pub static BLAKE3_COMPRESS: Lazy<Arc<Circuit>> = Lazy::new(|| {
     Arc::new(bincode::deserialize(bytes).unwrap())
 });
 
+/// Blake2s compression circuit.
+///
+/// The circuit has the following signature:
+///
+/// `fn(h: [u32; 8], m: [u32; 16], v_upper: [u32; 8]) -> [u32; 8]`
+///
+/// - `h`: chaining value (previous hash state)
+/// - `m`: message block
+/// - `v_upper`: pre-computed as `[IV[0..4], IV[4]^t[0], IV[5]^t[1], IV[6]^f, IV[7]]`
+#[cfg(feature = "blake2s")]
+pub static BLAKE2S_COMPRESS: Lazy<Arc<Circuit>> = Lazy::new(|| {
+    let bytes = include_bytes!("../data/blake2s.bin");
+    Arc::new(bincode::deserialize(bytes).unwrap())
+});
+
 /// Keccak-f[1600] permutation circuit.
 ///
 /// The circuit has the following signature:

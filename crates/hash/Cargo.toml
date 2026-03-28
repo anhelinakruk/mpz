@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 mpz-core = { workspace = true }
-mpz-circuits = { workspace = true, features = ["sha2", "blake3", "keccak"] }
+mpz-circuits = { workspace = true, features = ["sha2", "blake3", "blake2s", "keccak"] }
 mpz-vm-core = { workspace = true }
 
 blake3 = { workspace = true }
@@ -17,6 +17,7 @@ mpz-common = { workspace = true, features = ["test-utils"] }
 mpz-ideal-vm = { workspace = true }
 rand = { workspace = true }
 rstest = { workspace = true }
+blake2 = { version = "0.10" }
 sha2 = { workspace = true }
 sha3 = { version = "0.10" }
 tokio = { workspace = true, features = [
