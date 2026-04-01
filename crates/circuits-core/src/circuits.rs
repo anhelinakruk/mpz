@@ -2,6 +2,7 @@
 
 pub mod blake3;
 pub mod blake2s;
+pub mod poseidon;
 
 use crate::{Circuit, CircuitBuilder};
 
