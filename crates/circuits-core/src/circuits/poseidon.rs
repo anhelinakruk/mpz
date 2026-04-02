@@ -176,11 +176,6 @@ fn permute_internal(builder: &mut CircuitBuilder, mut state: State) -> State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evaluate;
-
-    fn to_m31_bits(x: u32) -> [bool; 31] {
-        std::array::from_fn(|i| (x >> i) & 1 == 1)
-    }
 
     #[test]
     fn test_poseidon2_permute() {
@@ -195,14 +190,12 @@ mod tests {
             0x128d6587, 0x515877e4, 0x037f4dd7, 0x134b427f,
         ];
 
-        // 31 bitów na słowo na wejściu
         let input_bits: Vec<bool> = input.iter()
             .flat_map(|&x| (0..31).map(move |b| (x >> b) & 1 == 1))
             .collect();
 
         let output_bits: Vec<bool> = circ.evaluate(input_bits.into_iter()).unwrap().into_iter().collect();
-
-        // 31 bitów na słowo na wyjściu
+ 
         let output: [u32; 16] = std::array::from_fn(|i| {
             (0..31).fold(0u32, |acc, b| {
                 if output_bits[i * 31 + b] { acc | (1 << b) } else { acc }
