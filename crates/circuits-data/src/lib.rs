@@ -89,6 +89,32 @@ pub static KECCAK_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(|| {
     Arc::new(bincode::deserialize(bytes).unwrap())
 });
 
+/// Poseidon2 permutation circuit over M31.
+///
+/// The circuit has the following signature:
+///
+/// `fn(state: [u32; 16]) -> [u32; 16]`
+///
+/// Each word holds a 31-bit M31 element (bit 31 is 0).
+#[cfg(feature = "poseidon")]
+pub static POSEIDON2_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(|| {
+    let bytes = include_bytes!("../data/poseidon2_permute.bin");
+    Arc::new(bincode::deserialize(bytes).unwrap())
+});
+
+/// Poseidon2 M31 rate absorption circuit.
+///
+/// The circuit has the following signature:
+///
+/// `fn(rate: [u32; 8], input: [u32; 8]) -> [u32; 8]`
+///
+/// Computes `rate[i] + input[i] mod p` for each element.
+#[cfg(feature = "poseidon")]
+pub static POSEIDON2_ABSORB: Lazy<Arc<Circuit>> = Lazy::new(|| {
+    let bytes = include_bytes!("../data/poseidon2_absorb.bin");
+    Arc::new(bincode::deserialize(bytes).unwrap())
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;

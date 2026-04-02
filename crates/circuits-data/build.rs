@@ -14,6 +14,7 @@ fn main() {
     build_blake3();
     build_blake2s();
     build_keccak(&circuits_dir);
+    build_poseidon();
 }
 
 fn build_aes(circuits_dir: &Path) {
@@ -64,4 +65,14 @@ fn build_keccak(circuits_dir: &Path) {
 
     let bytes = bincode::serialize(&circ).unwrap();
     write(Path::new("data/keccak_f.bin"), bytes).unwrap();
+}
+
+fn build_poseidon() {
+    let circ = mpz_circuits_core::circuits::poseidon::permute_u32();
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/poseidon2_permute.bin"), bytes).unwrap();
+
+    let circ = mpz_circuits_core::circuits::poseidon::absorb_m31();
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/poseidon2_absorb.bin"), bytes).unwrap();
 }

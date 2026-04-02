@@ -1,11 +1,14 @@
-//! Poseidon2 permutation circuit over M31 (p = 2^31 - 1). 
+//! Poseidon2 permutation circuit over M31 (p = 2^31 - 1).
 use std::array::from_fn;
 
 use crate::{Circuit, CircuitBuilder, Feed, Node, ops::{add_m31, mul_m31}};
 
-pub(crate) const N_STATE: usize = 16;                                                                                            
+pub(crate) const N_STATE: usize = 16;
 pub(crate) const N_HALF_FULL_ROUNDS: usize = 4;
 pub(crate) const N_PARTIAL_ROUNDS: usize = 14;
+
+/// Number of M31 elements in the rate portion of the sponge state.
+pub const RATE: usize = 8;
 
 const MAT_INTERNAL_DIAG_M_1: [u32; N_STATE] = [                                                                                  
     0x07b80ac4, 0x6bd9cb33, 0x48ee3f9f, 0x4f63dd19,                                                                              
@@ -120,10 +123,10 @@ fn apply_internal_round_matrix(builder: &mut CircuitBuilder, mut state: State) -
     state       
 }
 
-/// Returns a Poseidon2 permutation circuit:                                                                                     
+/// Returns a Poseidon2 permutation circuit:
 ///
-/// `fn(state: [u32; 16]) -> [u32; 16]`                                                                                          
-///                                                                                                                              
+/// `fn(state: [u32; 16]) -> [u32; 16]`
+///
 /// Inputs and outputs are M31 field elements (31-bit values in [0, p)).
 pub fn permute() -> Circuit {
     let mut builder = CircuitBuilder::new();
@@ -136,6 +139,62 @@ pub fn permute() -> Circuit {
         for node in word {
             builder.add_output(node);
         }
+    }
+
+    builder.build().unwrap()
+}
+
+/// Returns a Poseidon2 permutation circuit using 32-bit word representation:
+///
+/// `fn(state: [u32; 16]) -> [u32; 16]`
+///
+/// Each word is a 32-bit value where bit 31 is ignored on input and set to 0 on
+/// output. The low 31 bits hold the M31 field element.
+pub fn permute_u32() -> Circuit {
+    let mut builder = CircuitBuilder::new();
+
+    let state_u32: [[_; 32]; N_STATE] = from_fn(|_| from_fn(|_| builder.add_input()));
+
+    // Use only the low 31 bits of each word.
+    let state_m31: State = from_fn(|i| from_fn(|b| state_u32[i][b]));
+
+    let output_m31 = permute_internal(&mut builder, state_m31);
+
+    // Each output word gets its own zero gate (same node cannot appear in
+    // multiple output slots — the builder's id_map would alias them).
+    for word in output_m31 {
+        for node in word {
+            builder.add_output(node);
+        }
+        let zero = builder.add_xor_gate(word[0], word[0]);
+        builder.add_output(zero);
+    }
+
+    builder.build().unwrap()
+}
+
+/// Returns a circuit that absorbs `RATE` M31 elements into the rate portion of
+/// the Poseidon2 state using field addition:
+///
+/// `fn(rate: [u32; 8], input: [u32; 8]) -> [u32; 8]`
+///
+/// Each word is a 32-bit value where bit 31 is ignored on input and set to 0 on
+/// output.
+pub fn absorb_m31() -> Circuit {
+    let mut builder = CircuitBuilder::new();
+
+    let rate: [[_; 32]; RATE] = from_fn(|_| from_fn(|_| builder.add_input()));
+    let input: [[_; 32]; RATE] = from_fn(|_| from_fn(|_| builder.add_input()));
+
+    for i in 0..RATE {
+        let rate_m31: Word = from_fn(|b| rate[i][b]);
+        let input_m31: Word = from_fn(|b| input[i][b]);
+        let sum = add_m31(&mut builder, rate_m31, input_m31);
+        for node in sum {
+            builder.add_output(node);
+        }
+        let zero = builder.add_xor_gate(sum[0], sum[0]);
+        builder.add_output(zero);
     }
 
     builder.build().unwrap()
