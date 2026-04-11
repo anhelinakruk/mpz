@@ -120,6 +120,7 @@ impl Execute for IdealVm {
     }
 
     async fn execute(&mut self, _ctx: &mut Context) -> Result<()> {
+        println!("Execute IdealVM");
         while !self.call_stack.is_empty() {
             // Extract executable calls.
             let calls = self

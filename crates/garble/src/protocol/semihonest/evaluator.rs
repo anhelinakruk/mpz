@@ -297,6 +297,7 @@ where
     }
 
     async fn execute(&mut self, ctx: &mut Context) -> Result<()> {
+        println!("Execute Evaluator");
         if !self.preprocessed.is_empty() {
             self.execute_preprocessed()?;
         }

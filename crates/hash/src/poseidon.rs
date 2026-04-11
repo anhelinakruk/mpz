@@ -18,6 +18,8 @@ const IV: [u32; STATE_SIZE] = [0u32; STATE_SIZE];
 pub struct Poseidon2 {
     state: Option<Array<U32, STATE_SIZE>>,
     byte_buf: Vec<Slice>,
+    permutation_count: usize,
+    total_bytes: usize,
 }
 
 impl Default for Poseidon2 {
@@ -31,7 +33,13 @@ impl Poseidon2 {
         Self {
             state: None,
             byte_buf: Vec::new(),
+            permutation_count: 0,
+            total_bytes: 0,
         }
+    }
+
+    pub fn permutation_count(&self) -> usize {
+        self.permutation_count
     }
 
     pub fn update(
@@ -41,6 +49,11 @@ impl Poseidon2 {
     ) -> Result<(), Poseidon2Error> {
         let raw = input.to_raw();
         let n_bytes = raw.len() / 8;
+        self.total_bytes += n_bytes;
+        if self.total_bytes == n_bytes {
+            println!("[poseidon2] update: n_bytes={}", n_bytes);
+            println!("[poseidon2] backtrace:\n{}", std::backtrace::Backtrace::capture());
+        }
         for i in 0..n_bytes {
             let (_, tail) = raw.split_at(i * 8);
             let (byte_slice, _) = tail.split_at(8);
@@ -76,6 +89,11 @@ impl Poseidon2 {
                 .unwrap();
             self.absorb_block(vm, chunk)?;
         }
+
+        println!(
+            "[poseidon2] finalize: total_bytes={}, permutations={}",
+            self.total_bytes, self.permutation_count
+        );
 
         let rate_out = self
             .state
@@ -118,6 +136,8 @@ impl Poseidon2 {
             .expect("poseidon2 permute circuit should have 512 bit input");
 
         self.state = Some(vm.call(call)?);
+        self.permutation_count += 1;
+        println!("[poseidon2] permutation #{}", self.permutation_count);
         Ok(())
     }
 

@@ -110,6 +110,7 @@ where
     }
 
     async fn execute(&mut self, ctx: &mut Context) -> VmResult<()> {
+        println!("Execute Verifier");
         let mut verifier = Core::new(*self.store.delta());
 
         while !self.callstack.is_empty() {

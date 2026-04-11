@@ -80,6 +80,7 @@ pub trait Execute {
     /// Executes the callstack and flushes memory until all ready operations are
     /// completed.
     async fn execute_all(&mut self, ctx: &mut Context) -> Result<()> {
+        println!("Execute all");
         loop {
             if self.wants_flush() {
                 self.flush(ctx).await?;

@@ -266,6 +266,7 @@ where
     }
 
     async fn execute(&mut self, ctx: &mut Context) -> Result<()> {
+        println!("Execute Garbler");
         self.mark_executed()?;
 
         let delta = *self.store.try_lock().unwrap().delta();

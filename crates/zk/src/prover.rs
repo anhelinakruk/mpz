@@ -109,6 +109,7 @@ where
     }
 
     async fn execute(&mut self, ctx: &mut Context) -> VmResult<()> {
+        println!("Execute Prover");
         let mut prover = Core::default();
 
         while !self.callstack.is_empty() {

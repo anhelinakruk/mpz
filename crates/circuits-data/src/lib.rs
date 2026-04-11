@@ -121,6 +121,14 @@ mod tests {
     use mpz_circuits_core::evaluate;
 
     #[test]
+    #[cfg(all(feature = "blake2s", feature = "poseidon"))]
+    fn print_gate_counts() {
+        println!("BLAKE2S_COMPRESS:  AND={:>7}, XOR={:>7}", BLAKE2S_COMPRESS.and_count(), BLAKE2S_COMPRESS.xor_count());
+        println!("POSEIDON2_PERMUTE: AND={:>7}, XOR={:>7}", POSEIDON2_PERMUTE.and_count(), POSEIDON2_PERMUTE.xor_count());
+        println!("POSEIDON2_ABSORB:  AND={:>7}, XOR={:>7}", POSEIDON2_ABSORB.and_count(), POSEIDON2_ABSORB.xor_count());
+    }
+
+    #[test]
     #[cfg(feature = "aes")]
     fn test_aes128() {
         use aes::cipher::{BlockCipherEncrypt, KeyInit};

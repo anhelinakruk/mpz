@@ -25,6 +25,7 @@ impl Prover {
         gate_masks: &'a [bool],
         gate_macs: &'a [Mac],
     ) -> Result<ProverExecute> {
+        println!("Prover EXECUTE");
         if input_macs.len() != circ.inputs().len() {
             return Err(ErrorRepr::InputMacCount {
                 expected: circ.inputs().len(),
@@ -72,6 +73,8 @@ impl Prover {
         if Arc::strong_count(&self.check) > 1 {
             return Err(ErrorRepr::Inprogress.into());
         }
+
+        println!("VOLE prover check: AND gates = {}", self.check.lock().unwrap().total());
 
         self.check
             .lock()
