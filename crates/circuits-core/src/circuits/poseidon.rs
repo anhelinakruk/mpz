@@ -233,6 +233,148 @@ fn permute_internal(builder: &mut CircuitBuilder, mut state: State) -> State {
     state
 }
 
+// ── Native arithmetic helpers ─────────────────────────────────────────────────
+
+const M31_P: u32 = 0x7FFF_FFFF;
+
+#[inline(always)]
+fn m31_add(a: u32, b: u32) -> u32 {
+    let s = a + b;
+    if s >= M31_P { s - M31_P } else { s }
+}
+
+#[inline(always)]
+fn m31_mul(a: u32, b: u32) -> u32 {
+    ((a as u64 * b as u64) % M31_P as u64) as u32
+}
+
+#[inline(always)]
+fn m31_pow5(x: u32) -> u32 {
+    let x2 = m31_mul(x, x);
+    let x4 = m31_mul(x2, x2);
+    m31_mul(x4, x)
+}
+
+fn m31_apply_m4(x: [u32; 4]) -> [u32; 4] {
+    let t0 = m31_add(x[0], x[1]);
+    let t1 = m31_add(x[2], x[3]);
+    let t02 = m31_add(t0, t0);
+    let t12 = m31_add(t1, t1);
+    let t2 = m31_add(m31_add(x[1], x[1]), t1);
+    let t3 = m31_add(m31_add(x[3], x[3]), t0);
+    let t4 = m31_add(m31_add(t12, t12), t3);
+    let t5 = m31_add(m31_add(t02, t02), t2);
+    [m31_add(t3, t5), t5, m31_add(t2, t4), t4]
+}
+
+fn m31_apply_external(mut s: [u32; N_STATE]) -> [u32; N_STATE] {
+    for i in 0..4 {
+        let c = m31_apply_m4([s[4 * i], s[4 * i + 1], s[4 * i + 2], s[4 * i + 3]]);
+        s[4 * i..4 * i + 4].copy_from_slice(&c);
+    }
+    for j in 0..4 {
+        let sum = m31_add(m31_add(s[j], s[j + 4]), m31_add(s[j + 8], s[j + 12]));
+        s[j]      = m31_add(s[j],      sum);
+        s[j + 4]  = m31_add(s[j + 4],  sum);
+        s[j + 8]  = m31_add(s[j + 8],  sum);
+        s[j + 12] = m31_add(s[j + 12], sum);
+    }
+    s
+}
+
+fn m31_apply_internal(mut s: [u32; N_STATE]) -> [u32; N_STATE] {
+    let sum = s.iter().copied().fold(0u32, m31_add);
+    for i in 0..N_STATE {
+        s[i] = m31_add(m31_mul(s[i], MAT_INTERNAL_DIAG_M_1[i]), sum);
+    }
+    s
+}
+
+// ── Public native API ─────────────────────────────────────────────────────────
+
+/// Applies the Poseidon2 permutation in-place on a 16-element M31 state.
+pub fn poseidon2_permutation(state: &mut [u32; N_STATE]) {
+    *state = m31_apply_external(*state);
+
+    for round in 0..N_HALF_FULL_ROUNDS {
+        for i in 0..N_STATE {
+            state[i] = m31_pow5(m31_add(state[i], EXTERNAL_ROUND_CONSTS[round][i]));
+        }
+        *state = m31_apply_external(*state);
+    }
+
+    for round in 0..N_PARTIAL_ROUNDS {
+        state[0] = m31_pow5(m31_add(state[0], INTERNAL_ROUND_CONSTS[round]));
+        *state = m31_apply_internal(*state);
+    }
+
+    for round in N_HALF_FULL_ROUNDS..2 * N_HALF_FULL_ROUNDS {
+        for i in 0..N_STATE {
+            state[i] = m31_pow5(m31_add(state[i], EXTERNAL_ROUND_CONSTS[round][i]));
+        }
+        *state = m31_apply_external(*state);
+    }
+}
+
+/// Hashes two QM31 values using Poseidon2, returning the first 4 output limbs.
+///
+/// Each QM31 is represented as 4 M31 limbs `[limb0, limb1, limb2, limb3]`.
+///
+/// State layout (t = 16):
+/// ```text
+/// state = [a[0], b[0], a[1], a[2], a[3], b[1], b[2], b[3], 0×8]
+/// ```
+///
+/// **Kakarot compatibility**: when `a[1..4] == 0` and `b[1..4] == 0` the
+/// first output element is identical to Kakarot's M31 hash for `(a[0], b[0])`.
+pub fn poseidon2_value_qm31(a: [u32; 4], b: [u32; 4]) -> [u32; 4] {
+    let mut state = [0u32; N_STATE];
+    state[0] = a[0];
+    state[1] = b[0];
+    state[2] = a[1];
+    state[3] = a[2];
+    state[4] = a[3];
+    state[5] = b[1];
+    state[6] = b[2];
+    state[7] = b[3];
+    poseidon2_permutation(&mut state);
+    [state[0], state[1], state[2], state[3]]
+}
+
+// ── Circuit (AIR constraint evaluator) ───────────────────────────────────────
+
+/// Returns a Poseidon2 gate circuit for two QM31 inputs:
+///
+/// `fn(a: [u31; 4], b: [u31; 4]) -> [u31; 4]`
+///
+/// State layout: `[a0, b0, a1, a2, a3, b1, b2, b3, 0×8]`
+///
+/// The output is bit-for-bit identical to `poseidon2_value_qm31`.
+/// When the upper limbs are zero the result matches the Kakarot M31 hash.
+pub fn hash_qm31() -> Circuit {
+    let mut builder = CircuitBuilder::new();
+
+    let a: [Word; 4] = from_fn(|_| from_fn(|_| builder.add_input()));
+    let b: [Word; 4] = from_fn(|_| from_fn(|_| builder.add_input()));
+    let z: Word = from_fn(|_| builder.get_const_zero());
+
+    let state: State = [
+        a[0], b[0], a[1], a[2], a[3],
+        b[1], b[2], b[3],
+        z, z, z, z, z, z, z, z,
+    ];
+
+    let output = permute_internal(&mut builder, state);
+
+    for i in 0..4 {
+        for node in output[i] {
+            builder.add_output(node);
+        }
+    }
+
+    builder.build().unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,6 +405,100 @@ mod tests {
         });
 
         assert_eq!(output, expected);
+    }
+
+    // ── Native permutation tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_poseidon2_permutation_kakarot_vectors() {
+        let hash_m31 = |a: u32, b: u32| -> u32 {
+            let mut state = [0u32; N_STATE];
+            state[0] = a;
+            state[1] = b;
+            poseidon2_permutation(&mut state);
+            state[0]
+        };
+
+        assert_eq!(hash_m31(0,   0),   1183174448);
+        assert_eq!(hash_m31(1,   0),   846768668);
+        assert_eq!(hash_m31(0,   1),   1854499991);
+        assert_eq!(hash_m31(1,   2),   1975699496);
+        assert_eq!(hash_m31(100, 200), 844495285);
+    }
+
+    #[test]
+    fn test_poseidon2_permutation_matches_circuit() {
+        let circ = permute();
+
+        let input: [u32; N_STATE] = std::array::from_fn(|i| i as u32);
+
+        let mut state = input;
+        poseidon2_permutation(&mut state);
+
+        let input_bits: Vec<bool> = input
+            .iter()
+            .flat_map(|&x| (0..31).map(move |b| (x >> b) & 1 == 1))
+            .collect();
+        let output_bits: Vec<bool> = circ
+            .evaluate(input_bits.into_iter())
+            .unwrap()
+            .into_iter()
+            .collect();
+        let circuit_out: [u32; N_STATE] = std::array::from_fn(|i| {
+            (0..31).fold(0u32, |acc, b| {
+                if output_bits[i * 31 + b] { acc | (1 << b) } else { acc }
+            })
+        });
+
+        assert_eq!(state, circuit_out);
+    }
+
+    // ── QM31 hash tests ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_poseidon2_value_qm31_m31_compat() {
+        let cases = [(0u32, 0u32), (1, 0), (0, 1), (1, 2), (100, 200)];
+        let expected = [1183174448u32, 846768668, 1854499991, 1975699496, 844495285];
+
+        for ((a0, b0), exp) in cases.into_iter().zip(expected) {
+            let out = poseidon2_value_qm31([a0, 0, 0, 0], [b0, 0, 0, 0]);
+            assert_eq!(out[0], exp, "Kakarot compat failed for ({a0}, {b0})");
+        }
+    }
+
+    #[test]
+    fn test_poseidon2_value_qm31_no_collision() {
+        let r1 = poseidon2_value_qm31([5, 99, 0, 0], [42, 0, 0, 0]);
+        let r2 = poseidon2_value_qm31([5,  0, 0, 0], [42, 0, 0, 0]);
+        assert_ne!(r1, r2, "QM31 collision: limb1 of `a` must influence result");
+    }
+
+    #[test]
+    fn test_hash_qm31_circuit_matches_native() {
+        let circ = hash_qm31();
+
+        let a = [5u32, 99, 0, 0];
+        let b = [42u32, 0, 0, 0];
+
+        let input_bits: Vec<bool> = a
+            .iter()
+            .chain(b.iter())
+            .flat_map(|&x| (0..31).map(move |bit| (x >> bit) & 1 == 1))
+            .collect();
+
+        let output_bits: Vec<bool> = circ
+            .evaluate(input_bits.into_iter())
+            .unwrap()
+            .into_iter()
+            .collect();
+
+        let circuit_out: [u32; 4] = std::array::from_fn(|i| {
+            (0..31).fold(0u32, |acc, b| {
+                if output_bits[i * 31 + b] { acc | (1 << b) } else { acc }
+            })
+        });
+
+        assert_eq!(circuit_out, poseidon2_value_qm31(a, b));
     }
 
 }

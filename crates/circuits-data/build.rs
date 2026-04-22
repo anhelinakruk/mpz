@@ -75,4 +75,8 @@ fn build_poseidon() {
     let circ = mpz_circuits_core::circuits::poseidon::absorb_m31();
     let bytes = bincode::serialize(&circ).unwrap();
     write(Path::new("data/poseidon2_absorb.bin"), bytes).unwrap();
+
+    let circ = mpz_circuits_core::circuits::poseidon::hash_qm31();
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/poseidon2_hash_qm31.bin"), bytes).unwrap();
 }

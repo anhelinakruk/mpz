@@ -115,6 +115,22 @@ pub static POSEIDON2_ABSORB: Lazy<Arc<Circuit>> = Lazy::new(|| {
     Arc::new(bincode::deserialize(bytes).unwrap())
 });
 
+/// Poseidon2 QM31 hash gate circuit.
+///
+/// The circuit has the following signature:
+///
+/// `fn(a: [u31; 4], b: [u31; 4]) -> [u31; 4]`
+///
+/// State layout: `[a0, b0, a1, a2, a3, b1, b2, b3, 0×8]`
+///
+/// When the upper limbs are zero the result is identical to the Kakarot M31
+/// hash for inputs `(a[0], b[0])`.
+#[cfg(feature = "poseidon")]
+pub static POSEIDON2_HASH_QM31: Lazy<Arc<Circuit>> = Lazy::new(|| {
+    let bytes = include_bytes!("../data/poseidon2_hash_qm31.bin");
+    Arc::new(bincode::deserialize(bytes).unwrap())
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
