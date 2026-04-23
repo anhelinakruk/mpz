@@ -281,6 +281,11 @@ mod tests {
     #[case::single_one(&[1u8], 0x3278aa1cu32)]
     #[case::one_block(&[0u8, 1, 2, 3, 4, 5, 6, 7], 0x28c4b3a1u32)]
     #[case::two_blocks(&[0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 0x7502874bu32)]
+    // reference vectors from stwo-circuits
+    #[case::zeros_1block(&[0u8, 0, 0, 0, 0, 0, 0, 0], 1183174448u32)]
+    #[case::seq_1block(&[1u8, 2, 3, 4, 5, 6, 7, 8], 2058728681u32)]
+    #[case::seq_2blocks(&[1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], 2145539044u32)]
+    #[case::hello_padded(&[104u8, 101, 108, 108, 111, 0, 0, 0], 533342012u32)]
     #[tokio::test]
     async fn test_poseidon2_vectors(#[case] input: &[u8], #[case] expected: u32) {
         let out = hash(input).await;
