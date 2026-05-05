@@ -213,6 +213,66 @@ pub fn inv<const N: usize>(builder: &mut CircuitBuilder, a: [Node<Feed>; N]) -> 
     std::array::from_fn(|n| builder.add_inv_gate(a[n]))
 }
 
+/// Add two M31 field elements modulo p = 2^31 - 1
+pub fn add_m31(
+    builder: &mut CircuitBuilder,
+    a: [Node<Feed>; 31],
+    b: [Node<Feed>; 31],
+) -> [Node<Feed>; 31] {
+    let p: [Node<Feed>; 31] = std::array::from_fn(|_| builder.get_const_one());
+    add_mod(builder, &a, &b, &p).try_into().unwrap()
+}
+
+
+/// Multiply two integers, returning a result with a.len() + b.len() bits.
+pub fn mul_bits(
+    builder: &mut CircuitBuilder,
+    a: &[Node<Feed>],
+    b: &[Node<Feed>], 
+) -> Vec<Node<Feed>> {
+    let out_len = a.len() + b.len();
+    let mut acc = vec![builder.get_const_zero(); out_len];
+
+    for (i, &bi) in b.iter().enumerate() {
+        let mut pp = vec![builder.get_const_zero(); out_len];
+        for (j, &aj) in a.iter().enumerate() {
+            pp[i + j] = builder.add_and_gate(aj, bi);
+        }
+        acc = wrapping_add(builder, &acc, &pp);
+    }
+
+    acc
+}
+
+/// Multiply two M31 field elements modulo p = 2^31 - 1.
+///
+/// Inputs must be 31-bit values in [0, p). Returns a value in [0, p).
+pub fn mul_m31(
+    builder: &mut CircuitBuilder,
+    a: [Node<Feed>; 31],
+    b: [Node<Feed>; 31],
+) -> [Node<Feed>; 31] {
+    let product = mul_bits(builder, &a, &b);
+
+    let lo: [Node<Feed>; 31] = product[0..31].try_into().unwrap();
+    let hi: [Node<Feed>; 31] = product[31..62].try_into().unwrap();
+
+    let mut lo_32 = lo.to_vec();
+    lo_32.push(builder.get_const_zero()); 
+    let mut hi_32 = hi.to_vec();
+    hi_32.push(builder.get_const_zero()); 
+    let sum = wrapping_add(builder, &lo_32, &hi_32);
+
+    let lo2: [Node<Feed>; 31] = sum[0..31].try_into().unwrap();
+    let overflow = sum[31];
+
+    let mut carry = vec![overflow];
+    carry.extend((0..30).map(|_| builder.get_const_zero()));
+    let carry: [Node<Feed>; 31] = carry.try_into().unwrap();
+
+    add_m31(builder, lo2, carry)
+}
+
 #[cfg(test)]
 mod tests {
     use std::array::from_fn;
@@ -326,5 +386,69 @@ mod tests {
 
         let out: u8 = evaluate!(circ, a, b, true).unwrap();
         assert_eq!(out, b);
+    }
+
+    // Converts a u32 value to exactly 31 bits (LSB first) for use with evaluate!.
+    // Passing u32 directly would give 32 bits, misaligning 31-bit circuit inputs.
+    fn to_m31_bits(x: u32) -> [bool; 31] {
+        std::array::from_fn(|i| (x >> i) & 1 == 1)
+    }
+
+    #[test]
+    fn test_add_m31() {
+        const P: u32 = (1 << 31) - 1;
+
+        let cases: &[(u32, u32)] = &[
+            (0, 0),
+            (1, 0),
+            (0, 1),
+            (P - 1, 1),
+            (P - 1, P - 1),
+            (100, 200),
+        ];
+
+        for &(a, b) in cases {
+            let mut builder = CircuitBuilder::new();
+            let a_bits: [_; 31] = from_fn(|_| builder.add_input());
+            let b_bits: [_; 31] = from_fn(|_| builder.add_input());
+            let out = add_m31(&mut builder, a_bits, b_bits);
+            for node in out { builder.add_output(node); }
+            let circ = builder.build().unwrap();
+
+            let a_in = to_m31_bits(a);
+            let b_in = to_m31_bits(b);
+            let result: u32 = evaluate!(circ, a_in, b_in).unwrap();
+            let expected = ((a as u64 + b as u64) % P as u64) as u32;
+            assert_eq!(result, expected, "add_m31({a}, {b})");
+        }
+    }
+
+    #[test]
+    fn test_mul_m31() {
+        const P: u32 = (1 << 31) - 1;
+
+        let cases: &[(u32, u32)] = &[
+            (0, 0),
+            (1, 1),
+            (2, 3),
+            (P - 1, P - 1),
+            (P - 1, 2),
+            (123456789, 987654321),
+        ];
+
+        for &(a, b) in cases {
+            let mut builder = CircuitBuilder::new();
+            let a_bits: [_; 31] = from_fn(|_| builder.add_input());
+            let b_bits: [_; 31] = from_fn(|_| builder.add_input());
+            let out = mul_m31(&mut builder, a_bits, b_bits);
+            for node in out { builder.add_output(node); }
+            let circ = builder.build().unwrap();
+
+            let a_in = to_m31_bits(a);
+            let b_in = to_m31_bits(b);
+            let result: u32 = evaluate!(circ, a_in, b_in).unwrap();
+            let expected = ((a as u64 * b as u64) % P as u64) as u32;
+            assert_eq!(result, expected, "mul_m31({a}, {b})");
+        }
     }
 }

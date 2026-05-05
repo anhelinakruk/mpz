@@ -15,3 +15,5 @@ Cargo.lock
 
 .cargo-ok
 .DS_Store
+crates/circuits-data/data/poseidon2_permute.bin
+crates/circuits-data/data/poseidon2_absorb.bin

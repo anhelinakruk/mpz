@@ -1,6 +1,7 @@
 //! Circuits for MPC.
 
 pub mod blake3;
+pub mod poseidon2;
 
 use crate::{Circuit, CircuitBuilder};
 

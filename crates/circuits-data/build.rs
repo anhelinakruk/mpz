@@ -1,4 +1,4 @@
-use mpz_circuits_core::Circuit;
+use mpz_circuits_core::{Circuit, circuits::poseidon2::{absorb_m31, permute_u32}};
 use std::{
     fs::write,
     path::{Path, PathBuf},
@@ -13,6 +13,7 @@ fn main() {
     build_sha2(&circuits_dir);
     build_blake3();
     build_keccak(&circuits_dir);
+    build_poseidon();
 }
 
 fn build_aes(circuits_dir: &Path) {
@@ -56,4 +57,14 @@ fn build_keccak(circuits_dir: &Path) {
 
     let bytes = bincode::serialize(&circ).unwrap();
     write(Path::new("data/keccak_f.bin"), bytes).unwrap();
+}
+
+fn build_poseidon() {
+    let circ = permute_u32();
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/poseidon2_permute.bin"), bytes).unwrap();
+
+    let circ = absorb_m31();
+    let bytes = bincode::serialize(&circ).unwrap();
+    write(Path::new("data/poseidon2_absorb.bin"), bytes).unwrap();
 }

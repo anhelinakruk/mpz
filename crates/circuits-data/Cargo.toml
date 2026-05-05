@@ -15,6 +15,7 @@ aes = []
 sha2 = []
 blake3 = []
 keccak = []
+poseidon = []
 
 [dependencies]
 bincode = { version = "1.3" }

@@ -18,4 +18,7 @@ pub use mpz_circuits_data::SHA256_COMPRESS;
 #[cfg(feature = "keccak")]
 pub use mpz_circuits_data::KECCAK_PERMUTE;
 
+#[cfg(feature = "poseidon")]
+pub use mpz_circuits_data::{POSEIDON2_ABSORB, POSEIDON2_PERMUTE};
+
 pub use mpz_circuits_core::*;
