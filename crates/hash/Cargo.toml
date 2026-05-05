@@ -11,7 +11,7 @@ keccak256 = ["mpz-circuits/keccak"]
 
 [dependencies]
 mpz-core = { workspace = true }
-mpz-circuits = { workspace = true }
+mpz-circuits = { workspace = true, features = ["sha2", "blake3", "keccak", "poseidon"] }
 mpz-vm-core = { workspace = true }
 
 blake3 = { workspace = true, optional = true }
