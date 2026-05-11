@@ -22,6 +22,10 @@ bincode = { version = "1.3" }
 mpz-circuits-core = { workspace = true }
 once_cell = { workspace = true }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+
 [dev-dependencies]
 aes = { workspace = true }
 keccak = { workspace = true }
