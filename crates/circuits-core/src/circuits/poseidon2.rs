@@ -151,7 +151,6 @@ pub fn permute() -> Circuit {
 /// Each word is a 32-bit value where bit 31 is ignored on input and set to 0 on
 /// output. The low 31 bits hold the M31 field element.
 pub fn permute_u32() -> Circuit {
-    println!("Hello from Poseidon Permute u32");
     let mut builder = CircuitBuilder::new();
 
     let state_u32: [[_; 32]; N_STATE] = from_fn(|_| from_fn(|_| builder.add_input()));

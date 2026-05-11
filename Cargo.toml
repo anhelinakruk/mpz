@@ -132,6 +132,7 @@ rustversion = "1"
 # error/log
 tracing = "0.1"
 tracing-subscriber = "0.3"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 thiserror = "1"
 opaque-debug = "0.3"
 

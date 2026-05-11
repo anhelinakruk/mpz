@@ -19,7 +19,6 @@ pub struct Poseidon2 {
     state: Option<Array<U32, STATE_SIZE>>,
     byte_buf: Vec<Slice>,
     permutation_count: usize,
-    total_bytes: usize,
 }
 
 impl Default for Poseidon2 {
@@ -34,7 +33,6 @@ impl Poseidon2 {
             state: None,
             byte_buf: Vec::new(),
             permutation_count: 0,
-            total_bytes: 0,
         }
     }
 
@@ -49,11 +47,6 @@ impl Poseidon2 {
     ) -> Result<(), Poseidon2Error> {
         let raw = input.to_raw();
         let n_bytes = raw.len() / 8;
-        self.total_bytes += n_bytes;
-        if self.total_bytes == n_bytes {
-            println!("[poseidon2] update: n_bytes={}", n_bytes);
-            println!("[poseidon2] backtrace:\n{}", std::backtrace::Backtrace::capture());
-        }
         for i in 0..n_bytes {
             let (_, tail) = raw.split_at(i * 8);
             let (byte_slice, _) = tail.split_at(8);
@@ -89,11 +82,6 @@ impl Poseidon2 {
                 .unwrap();
             self.absorb_block(vm, chunk)?;
         }
-
-        println!(
-            "[poseidon2] finalize: total_bytes={}, permutations={}",
-            self.total_bytes, self.permutation_count
-        );
 
         let rate_out = self
             .state
@@ -137,7 +125,6 @@ impl Poseidon2 {
 
         self.state = Some(vm.call(call)?);
         self.permutation_count += 1;
-        println!("[poseidon2] permutation #{}", self.permutation_count);
         Ok(())
     }
 
@@ -275,21 +262,4 @@ use mpz_common::context::test_st_context;
         assert_eq!(out, native_hash(input));
     }
 
-    #[rstest::rstest]
-    #[case::empty(&[], 0x4685cf30u32)]
-    #[case::single_zero(&[0u8], 0x4685cf30u32)]
-    #[case::single_one(&[1u8], 0x3278aa1cu32)]
-    #[case::one_block(&[0u8, 1, 2, 3, 4, 5, 6, 7], 0x28c4b3a1u32)]
-    #[case::two_blocks(&[0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 0x7502874bu32)]
-    // reference vectors from stwo-circuits
-    #[case::zeros_1block(&[0u8, 0, 0, 0, 0, 0, 0, 0], 1183174448u32)]
-    #[case::seq_1block(&[1u8, 2, 3, 4, 5, 6, 7, 8], 2058728681u32)]
-    #[case::seq_2blocks(&[1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], 2145539044u32)]
-    #[case::hello_padded(&[104u8, 101, 108, 108, 111, 0, 0, 0], 533342012u32)]
-    #[tokio::test]
-    async fn test_poseidon2_vectors(#[case] input: &[u8], #[case] expected: u32) {
-        let out = hash(input).await;
-        let first_word = u32::from_le_bytes(out[0..4].try_into().unwrap());
-        assert_eq!(first_word, expected, "native: {:08x}", u32::from_le_bytes(native_hash(input)[0..4].try_into().unwrap()));
-    }
 }

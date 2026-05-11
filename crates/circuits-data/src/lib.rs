@@ -4,6 +4,46 @@ use mpz_circuits_core::Circuit;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
+#[cfg(all(feature = "poseidon", target_arch = "wasm32"))]
+mod wasm_poseidon {
+    use js_sys::Uint8Array;
+    use mpz_circuits_core::Circuit;
+    use std::sync::Arc;
+    use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen(inline_js = r#"
+    function getCircuitBytes(name) {
+        const bytes = globalThis.__zktlsCircuitBytes?.[name];
+        if (!(bytes instanceof Uint8Array)) {
+            throw new Error(`missing preloaded circuit bytes: ${name}`);
+        }
+        return bytes;
+    }
+
+    export function __mpz_get_poseidon2_permute_bytes() {
+        return getCircuitBytes("poseidon2_permute");
+    }
+
+    export function __mpz_get_poseidon2_absorb_bytes() {
+        return getCircuitBytes("poseidon2_absorb");
+    }
+    "#)]
+    extern "C" {
+        fn __mpz_get_poseidon2_permute_bytes() -> Uint8Array;
+        fn __mpz_get_poseidon2_absorb_bytes() -> Uint8Array;
+    }
+
+    pub(super) fn deserialize_permute() -> Arc<Circuit> {
+        let bytes = __mpz_get_poseidon2_permute_bytes().to_vec();
+        Arc::new(bincode::deserialize(&bytes).unwrap())
+    }
+
+    pub(super) fn deserialize_absorb() -> Arc<Circuit> {
+        let bytes = __mpz_get_poseidon2_absorb_bytes().to_vec();
+        Arc::new(bincode::deserialize(&bytes).unwrap())
+    }
+}
+
 /// AES-128 circuit.
 ///
 /// The circuit has the following signature:
@@ -81,11 +121,14 @@ pub static KECCAK_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(|| {
 /// `fn(state: [u32; 16]) -> [u32; 16]`
 ///
 /// Each word holds a 31-bit M31 element (bit 31 is 0).
-#[cfg(feature = "poseidon")]
+#[cfg(all(feature = "poseidon", not(target_arch = "wasm32")))]
 pub static POSEIDON2_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(|| {
     let bytes = include_bytes!("../data/poseidon2_permute.bin");
     Arc::new(bincode::deserialize(bytes).unwrap())
 });
+
+#[cfg(all(feature = "poseidon", target_arch = "wasm32"))]
+pub static POSEIDON2_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(wasm_poseidon::deserialize_permute);
 
 /// Poseidon2 M31 rate absorption circuit.
 ///
@@ -94,11 +137,14 @@ pub static POSEIDON2_PERMUTE: Lazy<Arc<Circuit>> = Lazy::new(|| {
 /// `fn(rate: [u32; 8], input: [u32; 8]) -> [u32; 8]`
 ///
 /// Computes `rate[i] + input[i] mod p` for each element.
-#[cfg(feature = "poseidon")]
+#[cfg(all(feature = "poseidon", not(target_arch = "wasm32")))]
 pub static POSEIDON2_ABSORB: Lazy<Arc<Circuit>> = Lazy::new(|| {
     let bytes = include_bytes!("../data/poseidon2_absorb.bin");
     Arc::new(bincode::deserialize(bytes).unwrap())
 });
+
+#[cfg(all(feature = "poseidon", target_arch = "wasm32"))]
+pub static POSEIDON2_ABSORB: Lazy<Arc<Circuit>> = Lazy::new(wasm_poseidon::deserialize_absorb);
 
 #[cfg(test)]
 mod tests {
