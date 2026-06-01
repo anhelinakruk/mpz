@@ -15,11 +15,17 @@ aes = []
 sha2 = []
 blake3 = []
 keccak = []
+poseidon = []
 
 [dependencies]
 bincode = { version = "1.3" }
+flate2 = "1"
 mpz-circuits-core = { workspace = true }
 once_cell = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2"
 
 [dev-dependencies]
 aes = { workspace = true }
@@ -30,4 +36,5 @@ zerocopy = { workspace = true }
 
 [build-dependencies]
 bincode = { version = "1.3" }
+flate2 = "1"
 mpz-circuits-core = { workspace = true }

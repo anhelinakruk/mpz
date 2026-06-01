@@ -1,6 +1,8 @@
-use mpz_circuits_core::Circuit;
+use flate2::{Compression, write::GzEncoder};
+use mpz_circuits_core::{Circuit, circuits::poseidon2::{absorb_m31, permute_u32}};
 use std::{
     fs::write,
+    io::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -13,6 +15,7 @@ fn main() {
     build_sha2(&circuits_dir);
     build_blake3();
     build_keccak(&circuits_dir);
+    build_poseidon();
 }
 
 fn build_aes(circuits_dir: &Path) {
@@ -56,4 +59,20 @@ fn build_keccak(circuits_dir: &Path) {
 
     let bytes = bincode::serialize(&circ).unwrap();
     write(Path::new("data/keccak_f.bin"), bytes).unwrap();
+}
+
+fn gz_compress(bytes: &[u8]) -> Vec<u8> {
+    let mut enc = GzEncoder::new(Vec::new(), Compression::best());
+    enc.write_all(bytes).unwrap();
+    enc.finish().unwrap()
+}
+
+fn build_poseidon() {
+    let circ = permute_u32();
+    let bytes = gz_compress(&mpz_circuits_core::compact::serialize(&circ));
+    write(Path::new("data/poseidon2_permute.bin"), bytes).unwrap();
+
+    let circ = absorb_m31();
+    let bytes = gz_compress(&mpz_circuits_core::compact::serialize(&circ));
+    write(Path::new("data/poseidon2_absorb.bin"), bytes).unwrap();
 }

@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 mpz-core = { workspace = true }
-mpz-circuits = { workspace = true, features = ["sha2", "blake3", "keccak"] }
+mpz-circuits = { workspace = true, features = ["sha2", "blake3", "keccak", "poseidon"] }
 mpz-vm-core = { workspace = true }
 
 blake3 = { workspace = true }
