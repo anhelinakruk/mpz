@@ -19,6 +19,7 @@ poseidon = []
 
 [dependencies]
 bincode = { version = "1.3" }
+flate2 = "1"
 mpz-circuits-core = { workspace = true }
 once_cell = { workspace = true }
 
@@ -35,4 +36,5 @@ zerocopy = { workspace = true }
 
 [build-dependencies]
 bincode = { version = "1.3" }
+flate2 = "1"
 mpz-circuits-core = { workspace = true }
