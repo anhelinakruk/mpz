@@ -6,6 +6,7 @@ extern crate self as mpz_circuits;
 mod builder;
 mod circuit;
 pub mod circuits;
+pub mod compact;
 pub(crate) mod components;
 pub mod ops;
 #[cfg(feature = "parse")]
